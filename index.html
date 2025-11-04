@@ -1,206 +1,337 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="zh-TW">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>心電感應⚡️</title>
-<style>
-:root {
-  --bg-day: #f0f2f5;
-  --bg-night: #2e2c3c;
-  --primary-blue: #6c7a89;
-  --primary-purple: #8e7cc3;
-  --accent-yellow: #f4d35e;
-  --accent-pink: #f7a1a1;
-}
-body {
-  margin:0;
-  font-family: Arial, sans-serif;
-  background-color: var(--bg-day);
-  color: #333;
-  transition: background 0.3s, color 0.3s;
-}
-header {
-  display:flex;
-  justify-content: space-between;
-  align-items:center;
-  padding:10px 20px;
-  background-color: var(--primary-purple);
-  color:white;
-}
-button { cursor:pointer; padding:5px 10px; border:none; border-radius:4px; margin-left:5px;}
-#calendar { display:grid; grid-template-columns: repeat(7, 1fr); gap:5px; margin:10px; }
-.day { padding:10px; background:#fff; text-align:center; border-radius:5px; cursor:pointer; position:relative;}
-.day.marked::after { content:'✖'; position:absolute; top:5px; right:5px; color:red; font-weight:bold;}
-#chatContainer { display:none; flex-direction:column; position:fixed; right:20px; top:80px; width:300px; max-height:500px; background:white; border:1px solid #ccc; border-radius:5px; overflow:hidden;}
-#chatMessages { flex:1; overflow-y:auto; padding:5px;}
-#chatInput { display:flex; }
-#chatInput input { flex:1; padding:5px; }
-#stats { margin:10px; padding:10px; background:#eee; border-radius:5px;}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>心電感應⚡️</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #c0c4d1;
+      margin: 0;
+      padding: 0;
+      color: #333;
+    }
+    header {
+      background-color: #d1c0c4;
+      padding: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    header h1 {
+      margin: 0;
+      font-size: 1.5em;
+    }
+    .calendar {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 5px;
+      padding: 10px;
+    }
+    .day {
+      background-color: #f5f5f5;
+      border: 1px solid #ccc;
+      padding: 10px;
+      min-height: 60px;
+      position: relative;
+      cursor: pointer;
+    }
+    .day.has-argue {
+      border: 2px solid #d9534f;
+    }
+    .chat-container {
+      display: none;
+      position: fixed;
+      bottom: 0;
+      right: 0;
+      width: 320px;
+      max-height: 450px;
+      background: #fff;
+      border: 1px solid #ccc;
+      display: flex;
+      flex-direction: column;
+      z-index: 999;
+    }
+    .chat-header {
+      background-color: #d1c0c4;
+      padding: 5px;
+      font-weight: bold;
+      display: flex;
+      justify-content: space-between;
+    }
+    .chat-messages {
+      flex: 1;
+      padding: 5px;
+      overflow-y: auto;
+      background: #eee;
+    }
+    .chat-input {
+      display: flex;
+    }
+    .chat-input input {
+      flex: 1;
+      padding: 5px;
+      border: 1px solid #ccc;
+    }
+    .chat-input button {
+      padding: 5px 10px;
+      background-color: #d1c0c4;
+      border: none;
+      cursor: pointer;
+    }
+    .settings {
+      position: fixed;
+      top: 50px;
+      right: 10px;
+      background: #fff;
+      border: 1px solid #ccc;
+      padding: 10px;
+      display: none;
+      flex-direction: column;
+      z-index: 1000;
+    }
+    .settings button {
+      margin-top: 5px;
+      background-color: #d1c0c4;
+      border: none;
+      padding: 5px;
+      cursor: pointer;
+    }
+    .stats {
+      padding: 10px;
+      background: #f0f0f0;
+      margin-top: 10px;
+      border: 1px solid #ccc;
+    }
+  </style>
 </head>
 <body>
+  <header>
+    <h1>心電感應⚡️</h1>
+    <div>
+      <button onclick="toggleSettings()">⚙️設定</button>
+      <button onclick="toggleTheme()">🌙日夜切換</button>
+    </div>
+  </header>
 
-<header>
-  <div>心電感應⚡️</div>
-  <div>
-    <button id="toggleMode">🌙</button>
-    <button id="prevMonth">←</button>
-    <button id="nextMonth">→</button>
-    <button id="setNickBtn">設定暱稱</button>
+  <div class="calendar-header" style="display:flex; justify-content:center; margin:10px 0;">
+    <button onclick="prevMonth()">←</button>
+    <span id="currentMonthYear" style="margin:0 15px; font-weight:bold;"></span>
+    <button onclick="nextMonth()">→</button>
   </div>
-</header>
 
-<div id="calendar"></div>
+  <div class="calendar" id="calendar"></div>
 
-<div id="chatContainer">
-  <div id="chatMessages"></div>
-  <div id="chatInput">
-    <input type="text" id="chatText" placeholder="輸入訊息...">
-    <button id="sendBtn">送出</button>
+  <!-- 聊天室 -->
+  <div class="chat-container" id="chatContainer">
+    <div class="chat-header">
+      <span>聊天 / 吵架原因</span>
+      <button onclick="closeChat()">✖</button>
+    </div>
+    <div class="chat-messages" id="chatMessages"></div>
+    <div class="chat-input">
+      <input type="text" id="chatInput" placeholder="輸入訊息">
+      <button onclick="sendMessage()">送出</button>
+    </div>
+    <div style="padding:5px;">
+      <input type="text" id="argueReason" placeholder="輸入吵架原因">
+      <button onclick="saveArgueReason()">儲存原因</button>
+    </div>
+    <div class="stats" id="stats">
+      <strong>統計</strong><br>
+      總吵架次數: <span id="totalArgues">0</span><br>
+      最常出現原因: <span id="mostCommonReason">-</span>
+    </div>
   </div>
-</div>
 
-<div id="stats">
-  <div id="monthlyStats"></div>
-</div>
+  <!-- 設定面板 -->
+  <div class="settings" id="settingsPanel">
+    <label>暱稱：
+      <input type="text" id="nicknameInput">
+      <button onclick="saveNickname()">儲存</button>
+    </label>
+  </div>
 
-<!-- Firebase -->
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-import { getDatabase, ref, onValue, push } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
-import { getAnalytics } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-analytics.js";
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
-// 使用你提供的 Firebase 設定
-const firebaseConfig = {
-  apiKey: "AIzaSyC0s0q3qmHlQ8n_PO0Uuz8QJY5lkNRKNYg",
-  authDomain: "telepathy-bffe8.firebaseapp.com",
-  databaseURL: "https://telepathy-bffe8-default-rtdb.firebaseio.com",
-  projectId: "telepathy-bffe8",
-  storageBucket: "telepathy-bffe8.firebasestorage.app",
-  messagingSenderId: "102746710547",
-  appId: "1:102746710547:web:7ce9a95ee58be10c5615e6",
-  measurementId: "G-FEP4V5JRGY"
-};
+  <script>
+    // Firebase 設定
+    const firebaseConfig = {
+      apiKey: "AIzaSyC0s0q3qmHlQ8n_PO0Uuz8QJY5lkNRKNYg",
+      authDomain: "telepathy-bffe8.firebaseapp.com",
+      databaseURL: "https://telepathy-bffe8-default-rtdb.firebaseio.com",
+      projectId: "telepathy-bffe8",
+      storageBucket: "telepathy-bffe8.firebasestorage.app",
+      messagingSenderId: "102746710547",
+      appId: "1:102746710547:web:7ce9a95ee58be10c5615e6",
+      measurementId: "G-FEP4V5JRGY"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
-const db = getDatabase(app);
+    // 全域變數
+    let currentMonth = new Date().getMonth();
+    let currentYear = new Date().getFullYear();
+    let selectedDate = null;
+    let nickname = localStorage.getItem('nickname') || '匿名';
 
-let nickname = localStorage.getItem("nickname") || "";
-let currentDate = new Date();
-let selectedDay = null;
+    document.getElementById('nicknameInput').value = nickname;
 
-// 暱稱設定
-document.getElementById("setNickBtn").onclick = () => {
-  const n = prompt("輸入暱稱:", nickname);
-  if(n) { nickname = n; localStorage.setItem("nickname", nickname); }
-};
+    function toggleSettings() {
+      const panel = document.getElementById('settingsPanel');
+      panel.style.display = panel.style.display === 'flex' ? 'none' : 'flex';
+    }
 
-// 日曆
-function renderCalendar() {
-  const calendar = document.getElementById("calendar");
-  calendar.innerHTML = "";
-  const year = currentDate.getFullYear();
-  const month = currentDate.getMonth();
-  const firstDay = new Date(year, month,1).getDay();
-  const lastDate = new Date(year, month+1,0).getDate();
-
-  for(let i=0;i<firstDay;i++) calendar.innerHTML += `<div></div>`;
-  for(let d=1;d<=lastDate;d++){
-    const dayDiv = document.createElement("div");
-    dayDiv.className="day";
-    dayDiv.textContent=d;
-    const dateKey = `${year}-${month+1}-${d}`;
-    onValue(ref(db,'days/'+dateKey), snapshot=>{
-      if(snapshot.exists()) dayDiv.classList.add("marked");
-      else dayDiv.classList.remove("marked");
-    });
-    dayDiv.onclick=()=>openChat(dateKey);
-    calendar.appendChild(dayDiv);
-  }
-}
-function changeMonth(diff){ currentDate.setMonth(currentDate.getMonth()+diff); renderCalendar();}
-document.getElementById("prevMonth").onclick=()=>changeMonth(-1);
-document.getElementById("nextMonth").onclick=()=>changeMonth(1);
-
-// 夜間/日間
-document.getElementById("toggleMode").onclick = ()=>{
-  if(document.body.style.backgroundColor === "var(--bg-day)" || !document.body.style.backgroundColor){
-    document.body.style.backgroundColor="var(--bg-night)";
-    document.body.style.color="#fff";
-  } else{
-    document.body.style.backgroundColor="var(--bg-day)";
-    document.body.style.color="#333";
-  }
-};
-
-// 聊天室
-const chatContainer = document.getElementById("chatContainer");
-const chatMessages = document.getElementById("chatMessages");
-document.getElementById("sendBtn").onclick=sendMsg;
-document.getElementById("chatText").addEventListener("keypress",e=>{if(e.key==="Enter") sendMsg();});
-
-function openChat(dateKey){
-  selectedDay = dateKey;
-  chatContainer.style.display="flex";
-  loadChat();
-}
-
-function loadChat(){
-  chatMessages.innerHTML="";
-  if(!selectedDay) return;
-  const chatRef = ref(db,'days/'+selectedDay+'/messages');
-  onValue(chatRef, snapshot=>{
-    chatMessages.innerHTML="";
-    snapshot.forEach(child=>{
-      const msg = child.val();
-      const msgDiv = document.createElement("div");
-      msgDiv.textContent = `${msg.nick}: ${msg.text}`;
-      chatMessages.appendChild(msgDiv);
-    });
-    chatMessages.scrollTop = chatMessages.scrollHeight;
-  });
-}
-
-function sendMsg(){
-  const text = document.getElementById("chatText").value.trim();
-  if(!text || !nickname) { alert("請先設定暱稱"); return; }
-  const msgRef = ref(db,'days/'+selectedDay+'/messages');
-  push(msgRef, { nick:nickname, text });
-  document.getElementById("chatText").value="";
-}
-
-// 統計
-function renderStats(){
-  const statsDiv = document.getElementById("monthlyStats");
-  const year = currentDate.getFullYear();
-  const month = currentDate.getMonth()+1;
-  const monthRef = ref(db,'days');
-  onValue(monthRef,snapshot=>{
-    let count=0;
-    let keywords={};
-    snapshot.forEach(child=>{
-      const key = child.key;
-      if(key.startsWith(`${year}-${month}-`)){
-        count++;
-        const messages = child.val().messages || {};
-        Object.values(messages).forEach(msg=>{
-          msg.text.split(/\s+/).forEach(word=>{
-            keywords[word] = (keywords[word]||0)+1;
-          });
-        });
+    function toggleTheme() {
+      if(document.body.style.backgroundColor === 'black'){
+        document.body.style.backgroundColor = '#c0c4d1';
+        document.body.style.color = '#333';
+      } else {
+        document.body.style.backgroundColor = 'black';
+        document.body.style.color = 'white';
       }
-    });
-    let topKeyword = Object.entries(keywords).sort((a,b)=>b[1]-a[1])[0]?.[0] || "無";
-    statsDiv.innerHTML=`本月吵架次數: ${count}<br>最常字詞: ${topKeyword}`;
-  });
-}
+    }
 
-setInterval(renderStats,2000);
+    function saveNickname() {
+      nickname = document.getElementById('nicknameInput').value || '匿名';
+      localStorage.setItem('nickname', nickname);
+      alert('暱稱已儲存: ' + nickname);
+    }
 
-renderCalendar();
-</script>
+    function renderCalendar(month = currentMonth, year = currentYear) {
+      const calendar = document.getElementById('calendar');
+      calendar.innerHTML = '';
+      const monthYear = document.getElementById('currentMonthYear');
+      monthYear.textContent = `${year} 年 ${month+1} 月`;
+
+      const firstDay = new Date(year, month, 1).getDay();
+      const daysInMonth = new Date(year, month+1, 0).getDate();
+
+      for(let i=0;i<firstDay;i++){
+        const emptyCell = document.createElement('div');
+        calendar.appendChild(emptyCell);
+      }
+
+      for(let day=1;day<=daysInMonth;day++){
+        const dayDiv = document.createElement('div');
+        dayDiv.className = 'day';
+        dayDiv.innerHTML = `<span class="date-number">${day}</span>`;
+        dayDiv.onclick = ()=>openChat(day, month, year);
+        db.ref(`records/${year}-${month+1}-${day}/reason`).once('value', snapshot=>{
+          if(snapshot.exists()){
+            dayDiv.classList.add('has-argue');
+          }
+        });
+        calendar.appendChild(dayDiv);
+      }
+    }
+
+    function prevMonth() {
+      currentMonth--;
+      if(currentMonth<0){
+        currentMonth=11;
+        currentYear--;
+      }
+      renderCalendar(currentMonth, currentYear);
+    }
+
+    function nextMonth() {
+      currentMonth++;
+      if(currentMonth>11){
+        currentMonth=0;
+        currentYear++;
+      }
+      renderCalendar(currentMonth, currentYear);
+    }
+
+    function openChat(day, month, year){
+      selectedDate = `${year}-${month+1}-${day}`;
+      document.getElementById('chatContainer').style.display = 'flex';
+      loadMessages(selectedDate);
+      loadArgueReason(selectedDate);
+    }
+
+    function closeChat() {
+      document.getElementById('chatContainer').style.display = 'none';
+    }
+
+    function loadMessages(date){
+      const messagesDiv = document.getElementById('chatMessages');
+      messagesDiv.innerHTML = '';
+      db.ref(`records/${date}`).on('value', snapshot=>{
+        messagesDiv.innerHTML = '';
+        let totalArgues = 0;
+        let reasonsArr = [];
+        if(snapshot.exists()){
+          snapshot.forEach(msgSnap=>{
+            const data = msgSnap.val();
+            if(data.message){
+              const msgEl = document.createElement('div');
+              msgEl.textContent = `${data.nickname}: ${data.message}`;
+              messagesDiv.appendChild(msgEl);
+            }
+            if(data.reason){
+              totalArgues++;
+              reasonsArr.push(data.reason);
+            }
+          });
+        }
+        document.getElementById('totalArgues').textContent = totalArgues;
+        document.getElementById('mostCommonReason').textContent = mostCommon(reasonsArr) || '-';
+      });
+    }
+
+    function sendMessage(){
+      const input = document.getElementById('chatInput');
+      const message = input.value.trim();
+      if(!message || !selectedDate) return;
+      db.ref(`records/${selectedDate}`).push({
+        nickname,
+        message,
+        timestamp: Date.now()
+      });
+      input.value = '';
+    }
+
+    function saveArgueReason(){
+      const reasonInput = document.getElementById('argueReason');
+      const reason = reasonInput.value.trim();
+      if(!reason || !selectedDate) return;
+      db.ref(`records/${selectedDate}`).push({
+        nickname,
+        reason,
+        timestamp: Date.now()
+      });
+      reasonInput.value = '';
+      renderCalendar(currentMonth, currentYear);
+    }
+
+    function loadArgueReason(date){
+      const reasonInput = document.getElementById('argueReason');
+      reasonInput.value = '';
+    }
+
+    function mostCommon(arr){
+      if(arr.length===0) return '';
+      const counts = {};
+      arr.forEach(a=>{
+        counts[a] = (counts[a]||0)+1;
+      });
+      let max=0;
+      let most='';
+      for(const key in counts){
+        if(counts[key]>max){
+          max = counts[key];
+          most = key;
+        }
+      }
+      return most;
+    }
+
+    renderCalendar();
+  </script>
 </body>
 </html>
