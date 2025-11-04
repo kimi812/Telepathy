@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>心電感應⚡️</title>
+<style>
+:root {
+  --bg-day: #f0f2f5;
+  --bg-night: #2e2c3c;
+  --primary-blue: #6c7a89;
+  --primary-purple: #8e7cc3;
+  --accent-yellow: #f4d35e;
+  --accent-pink: #f7a1a1;
+}
+body {
+  margin:0;
+  font-family: Arial, sans-serif;
+  background-color: var(--bg-day);
+  color: #333;
+  transition: background 0.3s, color 0.3s;
+}
+header {
+  display:flex;
+  justify-content: space-between;
+  align-items:center;
+  padding:10px 20px;
+  background-color: var(--primary-purple);
+  color:white;
+}
+button { cursor:pointer; padding:5px 10px; border:none; border-radius:4px; margin-left:5px;}
+#calendar { display:grid; grid-template-columns: repeat(7, 1fr); gap:5px; margin:10px; }
+.day { padding:10px; background:#fff; text-align:center; border-radius:5px; cursor:pointer; position:relative;}
+.day.marked::after { content:'✖'; position:absolute; top:5px; right:5px; color:red; font-weight:bold;}
+#chatContainer { display:none; flex-direction:column; position:fixed; right:20px; top:80px; width:300px; max-height:500px; background:white; border:1px solid #ccc; border-radius:5px; overflow:hidden;}
+#chatMessages { flex:1; overflow-y:auto; padding:5px;}
+#chatInput { display:flex; }
+#chatInput input { flex:1; padding:5px; }
+#stats { margin:10px; padding:10px; background:#eee; border-radius:5px;}
+</style>
+</head>
+<body>
+
+<header>
+  <div>心電感應⚡️</div>
+  <div>
+    <button id="toggleMode">🌙</button>
+    <button id="prevMonth">←</button>
+    <button id="nextMonth">→</button>
+    <button id="setNickBtn">設定暱稱</button>
+  </div>
+</header>
+
+<div id="calendar"></div>
+
+<div id="chatContainer">
+  <div id="chatMessages"></div>
+  <div id="chatInput">
+    <input type="text" id="chatText" placeholder="輸入訊息...">
+    <button id="sendBtn">送出</button>
+  </div>
+</div>
+
+<div id="stats">
+  <div id="monthlyStats"></div>
+</div>
+
+<!-- Firebase -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+import { getDatabase, ref, onValue, push } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
+import { getAnalytics } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-analytics.js";
+
+// 使用你提供的 Firebase 設定
+const firebaseConfig = {
+  apiKey: "AIzaSyC0s0q3qmHlQ8n_PO0Uuz8QJY5lkNRKNYg",
+  authDomain: "telepathy-bffe8.firebaseapp.com",
+  databaseURL: "https://telepathy-bffe8-default-rtdb.firebaseio.com",
+  projectId: "telepathy-bffe8",
+  storageBucket: "telepathy-bffe8.firebasestorage.app",
+  messagingSenderId: "102746710547",
+  appId: "1:102746710547:web:7ce9a95ee58be10c5615e6",
+  measurementId: "G-FEP4V5JRGY"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
+const db = getDatabase(app);
+
+let nickname = localStorage.getItem("nickname") || "";
+let currentDate = new Date();
+let selectedDay = null;
+
+// 暱稱設定
+document.getElementById("setNickBtn").onclick = () => {
+  const n = prompt("輸入暱稱:", nickname);
+  if(n) { nickname = n; localStorage.setItem("nickname", nickname); }
+};
+
+// 日曆
+function renderCalendar() {
+  const calendar = document.getElementById("calendar");
+  calendar.innerHTML = "";
+  const year = currentDate.getFullYear();
+  const month = currentDate.getMonth();
+  const firstDay = new Date(year, month,1).getDay();
+  const lastDate = new Date(year, month+1,0).getDate();
+
+  for(let i=0;i<firstDay;i++) calendar.innerHTML += `<div></div>`;
+  for(let d=1;d<=lastDate;d++){
+    const dayDiv = document.createElement("div");
+    dayDiv.className="day";
+    dayDiv.textContent=d;
+    const dateKey = `${year}-${month+1}-${d}`;
+    onValue(ref(db,'days/'+dateKey), snapshot=>{
+      if(snapshot.exists()) dayDiv.classList.add("marked");
+      else dayDiv.classList.remove("marked");
+    });
+    dayDiv.onclick=()=>openChat(dateKey);
+    calendar.appendChild(dayDiv);
+  }
+}
+function changeMonth(diff){ currentDate.setMonth(currentDate.getMonth()+diff); renderCalendar();}
+document.getElementById("prevMonth").onclick=()=>changeMonth(-1);
+document.getElementById("nextMonth").onclick=()=>changeMonth(1);
+
+// 夜間/日間
+document.getElementById("toggleMode").onclick = ()=>{
+  if(document.body.style.backgroundColor === "var(--bg-day)" || !document.body.style.backgroundColor){
+    document.body.style.backgroundColor="var(--bg-night)";
+    document.body.style.color="#fff";
+  } else{
+    document.body.style.backgroundColor="var(--bg-day)";
+    document.body.style.color="#333";
+  }
+};
+
+// 聊天室
+const chatContainer = document.getElementById("chatContainer");
+const chatMessages = document.getElementById("chatMessages");
+document.getElementById("sendBtn").onclick=sendMsg;
+document.getElementById("chatText").addEventListener("keypress",e=>{if(e.key==="Enter") sendMsg();});
+
+function openChat(dateKey){
+  selectedDay = dateKey;
+  chatContainer.style.display="flex";
+  loadChat();
+}
+
+function loadChat(){
+  chatMessages.innerHTML="";
+  if(!selectedDay) return;
+  const chatRef = ref(db,'days/'+selectedDay+'/messages');
+  onValue(chatRef, snapshot=>{
+    chatMessages.innerHTML="";
+    snapshot.forEach(child=>{
+      const msg = child.val();
+      const msgDiv = document.createElement("div");
+      msgDiv.textContent = `${msg.nick}: ${msg.text}`;
+      chatMessages.appendChild(msgDiv);
+    });
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+  });
+}
+
+function sendMsg(){
+  const text = document.getElementById("chatText").value.trim();
+  if(!text || !nickname) { alert("請先設定暱稱"); return; }
+  const msgRef = ref(db,'days/'+selectedDay+'/messages');
+  push(msgRef, { nick:nickname, text });
+  document.getElementById("chatText").value="";
+}
+
+// 統計
+function renderStats(){
+  const statsDiv = document.getElementById("monthlyStats");
+  const year = currentDate.getFullYear();
+  const month = currentDate.getMonth()+1;
+  const monthRef = ref(db,'days');
+  onValue(monthRef,snapshot=>{
+    let count=0;
+    let keywords={};
+    snapshot.forEach(child=>{
+      const key = child.key;
+      if(key.startsWith(`${year}-${month}-`)){
+        count++;
+        const messages = child.val().messages || {};
+        Object.values(messages).forEach(msg=>{
+          msg.text.split(/\s+/).forEach(word=>{
+            keywords[word] = (keywords[word]||0)+1;
+          });
+        });
+      }
+    });
+    let topKeyword = Object.entries(keywords).sort((a,b)=>b[1]-a[1])[0]?.[0] || "無";
+    statsDiv.innerHTML=`本月吵架次數: ${count}<br>最常字詞: ${topKeyword}`;
+  });
+}
+
+setInterval(renderStats,2000);
+
+renderCalendar();
+</script>
+</body>
+</html>
