@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>心電感應⚡️</title>
+<style>
+:root {
+  --bg-color: #d6d5e0;
+  --header-color: #a8a6c1;
+  --text-color: #2c2c2c;
+  --button-color: #e2d4b7;
+}
+
+body { margin:0; font-family:'Helvetica',sans-serif; background-color:var(--bg-color); color:var(--text-color);}
+header { display:flex; justify-content:space-between; padding:1rem; background-color:var(--header-color); color:white; }
+button { background-color:var(--button-color); border:none; padding:0.5rem 1rem; margin-left:0.5rem; border-radius:4px; cursor:pointer; }
+.calendar { display:grid; grid-template-columns:repeat(7,1fr); gap:5px; padding:1rem; }
+.day { border:1px solid #aaa; padding:0.5rem; position:relative; min-height:60px; cursor:pointer; }
+.day.has-argue::after { content:'❌'; color:red; position:absolute; top:5px; right:5px; }
+#chatbox { display:none; border-top:1px solid #aaa; padding:1rem; background-color:#fefefe; }
+.chat-message { margin:0.2rem 0; }
+.chat-message.self { text-align:right; }
+#nicknameInput { width:150px; }
+#fileInput { margin-top:0.5rem; }
+.stats { padding:0 1rem 1rem 1rem; }
+.night { --bg-color:#2c2c2c; --header-color:#444; --text-color:#eee; --button-color:#b7b48e; }
+</style>
+</head>
+<body>
+<header>
+<h1>心電感應⚡️</h1>
+<div>
+<input type="text" id="nicknameInput" placeholder="輸入暱稱">
+<button id="prevMonth">←</button>
+<button id="nextMonth">→</button>
+<button id="toggleMode">🌙</button>
+</div>
+</header>
+
+<div id="calendar" class="calendar"></div>
+
+<div id="chatbox">
+<h3 id="chatDate"></h3>
+<div id="chatMessages" style="max-height:200px; overflow:auto; border:1px solid #ccc; padding:5px;"></div>
+<textarea id="chatInput" placeholder="輸入訊息..." style="width:100%;"></textarea>
+<input type="file" id="fileInput" multiple>
+<button id="sendChat">傳送</button>
+</div>
+
+<div class="stats">
+<h4>統計資訊</h4>
+<p>總吵架次數：<span id="totalArgues">0</span></p>
+<p>最常原因關鍵字：<span id="topReason">無</span></p>
+</div>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.6.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.6.1/firebase-database.js"></script>
+
+<script>
+const firebaseConfig = {
+apiKey:"AIzaSyC0s0q3qmHlQ8n_PO0Uuz8QJY5lkNRKNYg",
+authDomain:"telepathy-bffe8.firebaseapp.com",
+databaseURL:"https://telepathy-bffe8-default-rtdb.firebaseio.com",
+projectId:"telepathy-bffe8",
+storageBucket:"telepathy-bffe8.appspot.com",
+messagingSenderId:"102746710547",
+appId:"1:102746710547:web:7ce9a95ee58be10c5615e6"
+};
+
+// 初始化 Firebase
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+// -----------------------
+// 日曆與聊天室邏輯
+// -----------------------
+let today = new Date();
+let currentMonth = today.getMonth();
+let currentYear = today.getFullYear();
+let nickname = localStorage.getItem('nickname') || '匿名';
+
+const calendarEl = document.getElementById("calendar");
+const chatboxEl = document.getElementById("chatbox");
+const chatMessagesEl = document.getElementById("chatMessages");
+const chatInputEl = document.getElementById("chatInput");
+const sendChatBtn = document.getElementById("sendChat");
+const chatDateEl = document.getElementById("chatDate");
+const nicknameInputEl = document.getElementById("nicknameInput");
+const totalArguesEl = document.getElementById("totalArgues");
+const topReasonEl = document.getElementById("topReason");
+
+nicknameInputEl.value = nickname;
+nicknameInputEl.onchange = () => {
+    nickname = nicknameInputEl.value || '匿名';
+    localStorage.setItem('nickname', nickname);
+};
+
+let nightMode = false;
+document.getElementById("toggleMode").onclick = () => {
+    nightMode = !nightMode;
+    if(nightMode) document.body.classList.add("night");
+    else document.body.classList.remove("night");
+};
+
+function renderCalendar(month, year){
+    calendarEl.innerHTML = "";
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    
+    for(let i=0;i<firstDay;i++){calendarEl.innerHTML += "<div></div>";}
+    
+    for(let d=1; d<=daysInMonth; d++){
+        const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        const dayEl = document.createElement("div");
+        dayEl.className = "day";
+        dayEl.textContent = d;
+
+        const dayRef = db.ref('days/' + dateStr);
+        dayRef.on('value', snapshot => {
+            if(snapshot.exists()) dayEl.classList.add("has-argue");
+            else dayEl.classList.remove("has-argue");
+        });
+
+        dayEl.onclick = () => openChat(dateStr);
+        calendarEl.appendChild(dayEl);
+    }
+    updateStats();
+}
+
+function openChat(dateStr){
+    chatboxEl.style.display = "block";
+    chatDateEl.textContent = "日期：" + dateStr;
+    chatMessagesEl.innerHTML = "";
+
+    const dayRef = db.ref('days/' + dateStr);
+    dayRef.on('value', snapshot => {
+        chatMessagesEl.innerHTML = "";
+        if(snapshot.exists()){
+            const data = snapshot.val();
+            for(let key in data){
+                const msgDiv = document.createElement("div");
+                msgDiv.textContent = `${data[key].nickname || '匿名'}: ${data[key].message}`;
+                msgDiv.className = data[key].nickname===nickname ? "chat-message self":"chat-message";
+                chatMessagesEl.appendChild(msgDiv);
+            }
+        }
+        chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
+    });
+
+    sendChatBtn.onclick = () => {
+        const msg = chatInputEl.value.trim();
+        if(!msg) return;
+        const newMsgRef = db.ref('days/' + dateStr).push();
+        newMsgRef.set({nickname, message: msg, timestamp: Date.now()});
+        chatInputEl.value = "";
+    };
+}
+
+document.getElementById("prevMonth").onclick = () => {
+    currentMonth--;
+    if(currentMonth<0){ currentMonth=11; currentYear--; }
+    renderCalendar(currentMonth, currentYear);
+};
+document.getElementById("nextMonth").onclick = () => {
+    currentMonth++;
+    if(currentMonth>11){ currentMonth=0; currentYear++; }
+    renderCalendar(currentMonth, currentYear);
+};
+
+// 統計功能
+function updateStats(){
+    const dbRef = db.ref('days');
+    dbRef.once('value', snapshot => {
+        let total = 0;
+        let reasonCount = {};
+        if(snapshot.exists()){
+            const data = snapshot.val();
+            total = Object.keys(data).length;
+            for(let date in data){
+                for(let k in data[date]){
+                    const msg = data[date][k].message;
+                    const words = msg.split(/\s+/);
+                    words.forEach(w=>{
+                        if(!reasonCount[w]) reasonCount[w]=0;
+                        reasonCount[w]++;
+                    });
+                }
+            }
+        }
+        totalArguesEl.textContent = total;
+        let topWord = Object.entries(reasonCount).sort((a,b)=>b[1]-a[1])[0];
+        topReasonEl.textContent = topWord ? topWord[0] : "無";
+    });
+}
+
+renderCalendar(currentMonth, currentYear);
+</script>
+</body>
+</html>
