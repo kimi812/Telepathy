@@ -6,11 +6,11 @@
   <title>心電感應⚡️</title>
   <style>
     body {
-      font-family: Arial, sans-serif;
+      font-family: 'Arial', sans-serif;
       background-color: #c0c4d1;
-      margin: 0;
-      padding: 0;
       color: #333;
+      margin: 0;
+      transition: background-color 0.3s, color 0.3s;
     }
     header {
       background-color: #d1c0c4;
@@ -18,10 +18,15 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
+      flex-wrap: wrap;
     }
     header h1 {
       margin: 0;
       font-size: 1.5em;
+    }
+    .calendar-header {
+      text-align: center;
+      margin: 15px 0;
     }
     .calendar {
       display: grid;
@@ -33,20 +38,26 @@
       background-color: #f5f5f5;
       border: 1px solid #ccc;
       padding: 10px;
-      min-height: 60px;
-      position: relative;
+      height: 70px;
       cursor: pointer;
+      position: relative;
+      text-align: center;
     }
-    .day.has-argue {
-      border: 2px solid #d9534f;
+    .day.has-argue::after {
+      content: "✖";
+      color: #e74c3c;
+      font-weight: bold;
+      position: absolute;
+      right: 5px;
+      top: 5px;
     }
     .chat-container {
       display: none;
       position: fixed;
       bottom: 0;
       right: 0;
-      width: 320px;
-      max-height: 450px;
+      width: 340px;
+      max-height: 500px;
       background: #fff;
       border: 1px solid #ccc;
       display: flex;
@@ -62,27 +73,34 @@
     }
     .chat-messages {
       flex: 1;
-      padding: 5px;
       overflow-y: auto;
       background: #eee;
+      padding: 5px;
     }
     .chat-input {
       display: flex;
+      padding: 5px;
+      background: #fafafa;
     }
     .chat-input input {
       flex: 1;
-      padding: 5px;
       border: 1px solid #ccc;
+      padding: 5px;
     }
     .chat-input button {
-      padding: 5px 10px;
       background-color: #d1c0c4;
       border: none;
+      padding: 5px 10px;
       cursor: pointer;
     }
-    .settings {
+    .reason-section {
+      background: #f4f4f4;
+      padding: 5px;
+      border-top: 1px solid #ccc;
+    }
+    .settings, .stats, .search {
       position: fixed;
-      top: 50px;
+      top: 60px;
       right: 10px;
       background: #fff;
       border: 1px solid #ccc;
@@ -90,19 +108,22 @@
       display: none;
       flex-direction: column;
       z-index: 1000;
+      width: 260px;
     }
-    .settings button {
+    .settings button, .stats button, .search button {
       margin-top: 5px;
       background-color: #d1c0c4;
       border: none;
       padding: 5px;
       cursor: pointer;
     }
-    .stats {
-      padding: 10px;
-      background: #f0f0f0;
-      margin-top: 10px;
-      border: 1px solid #ccc;
+    .night-mode {
+      background-color: #222 !important;
+      color: #fff !important;
+    }
+    .year-control {
+      text-align: center;
+      margin-bottom: 5px;
     }
   </style>
 </head>
@@ -110,14 +131,22 @@
   <header>
     <h1>心電感應⚡️</h1>
     <div>
+      <button onclick="toggleSearch()">🔍搜尋</button>
+      <button onclick="toggleStats()">📊統計</button>
       <button onclick="toggleSettings()">⚙️設定</button>
-      <button onclick="toggleTheme()">🌙日夜切換</button>
+      <button onclick="toggleTheme()">🌙切換</button>
     </div>
   </header>
 
-  <div class="calendar-header" style="display:flex; justify-content:center; margin:10px 0;">
+  <div class="year-control">
+    <button onclick="prevYear()">←</button>
+    <span id="currentYearLabel"></span>
+    <button onclick="nextYear()">→</button>
+  </div>
+
+  <div class="calendar-header">
     <button onclick="prevMonth()">←</button>
-    <span id="currentMonthYear" style="margin:0 15px; font-weight:bold;"></span>
+    <span id="currentMonthYear"></span>
     <button onclick="nextMonth()">→</button>
   </div>
 
@@ -126,26 +155,21 @@
   <!-- 聊天室 -->
   <div class="chat-container" id="chatContainer">
     <div class="chat-header">
-      <span>聊天 / 吵架原因</span>
+      <span id="chatDate"></span>
       <button onclick="closeChat()">✖</button>
+    </div>
+    <div class="reason-section">
+      <input type="text" id="argueReason" placeholder="輸入吵架原因">
+      <button onclick="saveArgueReason()">💾 儲存</button>
     </div>
     <div class="chat-messages" id="chatMessages"></div>
     <div class="chat-input">
       <input type="text" id="chatInput" placeholder="輸入訊息">
       <button onclick="sendMessage()">送出</button>
     </div>
-    <div style="padding:5px;">
-      <input type="text" id="argueReason" placeholder="輸入吵架原因">
-      <button onclick="saveArgueReason()">儲存原因</button>
-    </div>
-    <div class="stats" id="stats">
-      <strong>統計</strong><br>
-      總吵架次數: <span id="totalArgues">0</span><br>
-      最常出現原因: <span id="mostCommonReason">-</span>
-    </div>
   </div>
 
-  <!-- 設定面板 -->
+  <!-- 設定 -->
   <div class="settings" id="settingsPanel">
     <label>暱稱：
       <input type="text" id="nicknameInput">
@@ -153,12 +177,27 @@
     </label>
   </div>
 
-  <!-- Firebase SDK -->
+  <!-- 統計 -->
+  <div class="stats" id="statsPanel">
+    <h3>📅 年度統計</h3>
+    <div id="yearStats"></div>
+    <button onclick="closeStats()">關閉</button>
+  </div>
+
+  <!-- 搜尋 -->
+  <div class="search" id="searchPanel">
+    <h3>🔍 關鍵字搜尋</h3>
+    <input type="text" id="searchKeyword" placeholder="輸入關鍵字">
+    <button onclick="searchReasons()">搜尋</button>
+    <div id="searchResults"></div>
+    <button onclick="closeSearch()">關閉</button>
+  </div>
+
+  <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
   <script>
-    // Firebase 設定
     const firebaseConfig = {
       apiKey: "AIzaSyC0s0q3qmHlQ8n_PO0Uuz8QJY5lkNRKNYg",
       authDomain: "telepathy-bffe8.firebaseapp.com",
@@ -172,7 +211,6 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    // 全域變數
     let currentMonth = new Date().getMonth();
     let currentYear = new Date().getFullYear();
     let selectedDate = null;
@@ -181,20 +219,23 @@
     document.getElementById('nicknameInput').value = nickname;
 
     function toggleSettings() {
-      const panel = document.getElementById('settingsPanel');
-      panel.style.display = panel.style.display === 'flex' ? 'none' : 'flex';
+      togglePanel('settingsPanel');
     }
-
+    function toggleStats() {
+      togglePanel('statsPanel');
+      if (document.getElementById('statsPanel').style.display === 'flex') loadYearStats();
+    }
+    function toggleSearch() {
+      togglePanel('searchPanel');
+    }
+    function togglePanel(id) {
+      document.querySelectorAll('.settings, .stats, .search').forEach(p => p.style.display = 'none');
+      const panel = document.getElementById(id);
+      panel.style.display = (panel.style.display === 'flex') ? 'none' : 'flex';
+    }
     function toggleTheme() {
-      if(document.body.style.backgroundColor === 'black'){
-        document.body.style.backgroundColor = '#c0c4d1';
-        document.body.style.color = '#333';
-      } else {
-        document.body.style.backgroundColor = 'black';
-        document.body.style.color = 'white';
-      }
+      document.body.classList.toggle('night-mode');
     }
-
     function saveNickname() {
       nickname = document.getElementById('nicknameInput').value || '匿名';
       localStorage.setItem('nickname', nickname);
@@ -204,131 +245,109 @@
     function renderCalendar(month = currentMonth, year = currentYear) {
       const calendar = document.getElementById('calendar');
       calendar.innerHTML = '';
-      const monthYear = document.getElementById('currentMonthYear');
-      monthYear.textContent = `${year} 年 ${month+1} 月`;
+      document.getElementById('currentMonthYear').textContent = `${year} 年 ${month + 1} 月`;
+      document.getElementById('currentYearLabel').textContent = `📆 ${year}`;
 
       const firstDay = new Date(year, month, 1).getDay();
-      const daysInMonth = new Date(year, month+1, 0).getDate();
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-      for(let i=0;i<firstDay;i++){
-        const emptyCell = document.createElement('div');
-        calendar.appendChild(emptyCell);
+      for (let i = 0; i < firstDay; i++) {
+        calendar.appendChild(document.createElement('div'));
       }
 
-      for(let day=1;day<=daysInMonth;day++){
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dateKey = `${year}-${month + 1}-${day}`;
         const dayDiv = document.createElement('div');
         dayDiv.className = 'day';
-        dayDiv.innerHTML = `<span class="date-number">${day}</span>`;
-        dayDiv.onclick = ()=>openChat(day, month, year);
-        db.ref(`records/${year}-${month+1}-${day}/reason`).once('value', snapshot=>{
-          if(snapshot.exists()){
-            dayDiv.classList.add('has-argue');
-          }
+        dayDiv.innerHTML = `<span>${day}</span>`;
+        dayDiv.onclick = () => openChat(dateKey);
+        db.ref(`records/${dateKey}/reason`).once('value', snap => {
+          if (snap.exists()) dayDiv.classList.add('has-argue');
         });
         calendar.appendChild(dayDiv);
       }
     }
 
-    function prevMonth() {
-      currentMonth--;
-      if(currentMonth<0){
-        currentMonth=11;
-        currentYear--;
-      }
-      renderCalendar(currentMonth, currentYear);
-    }
+    function prevMonth() { currentMonth = (currentMonth === 0) ? 11 : currentMonth - 1; if (currentMonth === 11) currentYear--; renderCalendar(); }
+    function nextMonth() { currentMonth = (currentMonth === 11) ? 0 : currentMonth + 1; if (currentMonth === 0) currentYear++; renderCalendar(); }
+    function prevYear() { currentYear--; renderCalendar(); }
+    function nextYear() { currentYear++; renderCalendar(); }
 
-    function nextMonth() {
-      currentMonth++;
-      if(currentMonth>11){
-        currentMonth=0;
-        currentYear++;
-      }
-      renderCalendar(currentMonth, currentYear);
-    }
-
-    function openChat(day, month, year){
-      selectedDate = `${year}-${month+1}-${day}`;
+    function openChat(dateKey) {
+      selectedDate = dateKey;
       document.getElementById('chatContainer').style.display = 'flex';
-      loadMessages(selectedDate);
-      loadArgueReason(selectedDate);
+      document.getElementById('chatDate').textContent = dateKey;
+      loadMessages(dateKey);
+      loadReason(dateKey);
     }
+    function closeChat() { document.getElementById('chatContainer').style.display = 'none'; }
 
-    function closeChat() {
-      document.getElementById('chatContainer').style.display = 'none';
-    }
-
-    function loadMessages(date){
-      const messagesDiv = document.getElementById('chatMessages');
-      messagesDiv.innerHTML = '';
-      db.ref(`records/${date}`).on('value', snapshot=>{
-        messagesDiv.innerHTML = '';
-        let totalArgues = 0;
-        let reasonsArr = [];
-        if(snapshot.exists()){
-          snapshot.forEach(msgSnap=>{
-            const data = msgSnap.val();
-            if(data.message){
-              const msgEl = document.createElement('div');
-              msgEl.textContent = `${data.nickname}: ${data.message}`;
-              messagesDiv.appendChild(msgEl);
-            }
-            if(data.reason){
-              totalArgues++;
-              reasonsArr.push(data.reason);
-            }
-          });
-        }
-        document.getElementById('totalArgues').textContent = totalArgues;
-        document.getElementById('mostCommonReason').textContent = mostCommon(reasonsArr) || '-';
-      });
-    }
-
-    function sendMessage(){
+    function sendMessage() {
       const input = document.getElementById('chatInput');
-      const message = input.value.trim();
-      if(!message || !selectedDate) return;
-      db.ref(`records/${selectedDate}`).push({
-        nickname,
-        message,
-        timestamp: Date.now()
-      });
+      const msg = input.value.trim();
+      if (!msg || !selectedDate) return;
+      db.ref(`records/${selectedDate}/messages`).push({ nickname, message: msg, timestamp: Date.now() });
       input.value = '';
     }
 
-    function saveArgueReason(){
-      const reasonInput = document.getElementById('argueReason');
-      const reason = reasonInput.value.trim();
-      if(!reason || !selectedDate) return;
-      db.ref(`records/${selectedDate}`).push({
-        nickname,
-        reason,
-        timestamp: Date.now()
+    function loadMessages(dateKey) {
+      const msgDiv = document.getElementById('chatMessages');
+      db.ref(`records/${dateKey}/messages`).on('value', snapshot => {
+        msgDiv.innerHTML = '';
+        snapshot.forEach(c => {
+          const m = c.val();
+          const el = document.createElement('div');
+          el.textContent = `${m.nickname}: ${m.message}`;
+          msgDiv.appendChild(el);
+        });
+        msgDiv.scrollTop = msgDiv.scrollHeight;
       });
-      reasonInput.value = '';
-      renderCalendar(currentMonth, currentYear);
     }
 
-    function loadArgueReason(date){
-      const reasonInput = document.getElementById('argueReason');
-      reasonInput.value = '';
+    function saveArgueReason() {
+      const reason = document.getElementById('argueReason').value.trim();
+      if (!reason || !selectedDate) return;
+      db.ref(`records/${selectedDate}/reason`).set(reason);
+      renderCalendar();
     }
 
-    function mostCommon(arr){
-      if(arr.length===0) return '';
-      const counts = {};
-      arr.forEach(a=>{
-        counts[a] = (counts[a]||0)+1;
+    function loadReason(dateKey) {
+      db.ref(`records/${dateKey}/reason`).once('value', s => {
+        document.getElementById('argueReason').value = s.val() || '';
       });
-      let max=0;
-      let most='';
-      for(const key in counts){
-        if(counts[key]>max){
-          max = counts[key];
-          most = key;
-        }
-      }
-      return most;
+    }
+
+    function loadYearStats() {
+      const div = document.getElementById('yearStats');
+      div.innerHTML = '載入中...';
+      db.ref('records').once('value', s => {
+        let months = {}, reasons = {};
+        s.forEach(c => {
+          const [y, m] = c.key.split('-');
+          if (+y === currentYear) {
+            months[m] = (months[m] || 0) + 1;
+            const r = c.val().reason;
+            if (r) reasons[r] = (reasons[r] || 0) + 1;
+          }
+        });
+        div.innerHTML = '<h4>每月次數</h4>' + Object.keys(months).map(m => `${m} 月：${months[m]} 次`).join('<br>') +
+          '<h4>常見原因</h4>' + (Object.keys(reasons).length ? Object.entries(reasons).sort((a,b)=>b[1]-a[1]).map(r => `${r[0]} (${r[1]}次)`).join('<br>') : '暫無資料');
+      });
+    }
+
+    function searchReasons() {
+      const kw = document.getElementById('searchKeyword').value.trim();
+      const resDiv = document.getElementById('searchResults');
+      if (!kw) return;
+      resDiv.innerHTML = '搜尋中...';
+      db.ref('records').once('value', s => {
+        let matches = [];
+        s.forEach(c => {
+          const r = c.val().reason || '';
+          if (r.includes(kw)) matches.push({ date: c.key, reason: r });
+        });
+        resDiv.innerHTML = matches.length ? matches.map(m => `<div onclick="openChat('${m.date}')">${m.date}：${m.reason}</div>`).join('') : '沒有找到結果';
+      });
     }
 
     renderCalendar();
