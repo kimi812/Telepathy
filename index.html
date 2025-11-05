@@ -141,8 +141,8 @@
     <div>
       <button onclick="toggleSearch()">🔍搜尋</button>
       <button onclick="toggleStats()">📊統計</button>
+      <button onclick="toggleExport()">📦匯出</button>
       <button onclick="toggleSettings()">⚙️設定</button>
-      <button onclick="toggleExport()">📤匯出</button>
       <button onclick="toggleTheme()">🌙切換</button>
     </div>
   </header>
@@ -206,28 +206,212 @@
     <button onclick="closeSearch()">關閉</button>
   </div>
 
-  <!-- 匯出 -->
+  <!-- 匯出資料 -->
   <div class="export" id="exportPanel">
-    <h3>📤 匯出資料</h3>
-    <label>起始日期：<input type="date" id="exportStart"></label>
+    <h3>📦 匯出資料</h3>
+    <label>開始日期：<input type="date" id="exportStart"></label>
     <label>結束日期：<input type="date" id="exportEnd"></label>
-    <label>格式：
-      <select id="exportFormat">
-        <option value="csv">CSV</option>
-        <option value="xlsx">Excel</option>
-        <option value="pdf">PDF</option>
-      </select>
-    </label>
-    <button onclick="exportData()">匯出</button>
+    <button onclick="exportCSV()">匯出 CSV</button>
+    <button onclick="exportExcel()">匯出 Excel</button>
+    <button onclick="exportPDF()">匯出 PDF</button>
     <button onclick="closeExport()">關閉</button>
   </div>
 
   <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <!-- SheetJS -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <!-- jsPDF -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
   <script>
     const firebaseConfig = {
-      apiKey: "AIzaSyC0s0q3qmHlQ8n_PO0Uuz
+      apiKey: "AIzaSyC0s0q3qmHlQ8n_PO0Uuz8QJY5lkNRKNYg",
+      authDomain: "telepathy-bffe8.firebaseapp.com",
+      databaseURL: "https://telepathy-bffe8-default-rtdb.firebaseio.com",
+      projectId: "telepathy-bffe8",
+      storageBucket: "telepathy-bffe8.firebasestorage.app",
+      messagingSenderId: "102746710547",
+      appId: "1:102746710547:web:7ce9a95ee58be10c5615e6",
+      measurementId: "G-FEP4V5JRGY"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    let currentMonth = new Date().getMonth();
+    let currentYear = new Date().getFullYear();
+    let selectedDate = null;
+    let nickname = localStorage.getItem('nickname') || '匿名';
+    document.getElementById('nicknameInput').value = nickname;
+
+    // ==== UI 開關 ====
+    function toggleSettings() { togglePanel('settingsPanel'); }
+    function toggleStats() { togglePanel('statsPanel'); if (document.getElementById('statsPanel').style.display === 'flex') loadYearStats(); }
+    function toggleSearch() { togglePanel('searchPanel'); }
+    function toggleExport() { togglePanel('exportPanel'); }
+    function togglePanel(id) {
+      document.querySelectorAll('.settings, .stats, .search, .export').forEach(p => p.style.display = 'none');
+      const panel = document.getElementById(id);
+      panel.style.display = (panel.style.display === 'flex') ? 'none' : 'flex';
+    }
+    function closeStats() { document.getElementById('statsPanel').style.display = 'none'; }
+    function closeSearch() { document.getElementById('searchPanel').style.display = 'none'; }
+    function closeSettings() { document.getElementById('settingsPanel').style.display = 'none'; }
+    function closeExport() { document.getElementById('exportPanel').style.display = 'none'; }
+    function toggleTheme() { document.body.classList.toggle('night-mode'); }
+
+    // ==== 暱稱 ====
+    function saveNickname() {
+      nickname = document.getElementById('nicknameInput').value || '匿名';
+      localStorage.setItem('nickname', nickname);
+      alert('暱稱已儲存: ' + nickname);
+    }
+
+    // ==== 日曆 ====
+    function renderCalendar() {
+      const cal = document.getElementById('calendar');
+      cal.innerHTML = '';
+      document.getElementById('currentMonthYear').textContent = `${currentYear} 年 ${currentMonth + 1} 月`;
+      document.getElementById('currentYearLabel').textContent = `📆 ${currentYear}`;
+
+      const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+      const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+      for (let i = 0; i < firstDay; i++) cal.appendChild(document.createElement('div'));
+
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dateKey = `${currentYear}-${currentMonth + 1}-${day}`;
+        const dayDiv = document.createElement('div');
+        dayDiv.className = 'day';
+        dayDiv.innerHTML = `<span>${day}</span>`;
+        dayDiv.onclick = () => openChat(dateKey);
+        db.ref(`records/${dateKey}/reason`).once('value', s => {
+          if (s.exists()) dayDiv.classList.add('has-argue');
+        });
+        cal.appendChild(dayDiv);
+      }
+    }
+
+    function prevMonth() { currentMonth = (currentMonth === 0 ? 11 : currentMonth - 1); if (currentMonth === 11) currentYear--; renderCalendar(); }
+    function nextMonth() { currentMonth = (currentMonth === 11 ? 0 : currentMonth + 1); if (currentMonth === 0) currentYear++; renderCalendar(); }
+    function prevYear() { currentYear--; renderCalendar(); }
+    function nextYear() { currentYear++; renderCalendar(); }
+
+    // ==== 聊天 ====
+    function openChat(dateKey) {
+      selectedDate = dateKey;
+      document.getElementById('chatContainer').style.display = 'flex';
+      document.getElementById('chatDate').textContent = dateKey;
+      loadMessages(dateKey);
+      loadReason(dateKey);
+    }
+    function closeChat() { document.getElementById('chatContainer').style.display = 'none'; }
+
+    function sendMessage() {
+      const input = document.getElementById('chatInput');
+      const msg = input.value.trim();
+      if (!msg || !selectedDate) return;
+      db.ref(`records/${selectedDate}/messages`).push({ nickname, message: msg, timestamp: Date.now() });
+      input.value = '';
+    }
+
+    function loadMessages(dateKey) {
+      const msgDiv = document.getElementById('chatMessages');
+      db.ref(`records/${dateKey}/messages`).on('value', s => {
+        msgDiv.innerHTML = '';
+        s.forEach(c => {
+          const m = c.val();
+          const el = document.createElement('div');
+          el.textContent = `${m.nickname}: ${m.message}`;
+          msgDiv.appendChild(el);
+        });
+        msgDiv.scrollTop = msgDiv.scrollHeight;
+      });
+    }
+
+    function saveArgueReason() {
+      const reason = document.getElementById('argueReason').value.trim();
+      if (!reason || !selectedDate) return;
+      db.ref(`records/${selectedDate}/reason`).set(reason);
+      renderCalendar();
+    }
+    function loadReason(dateKey) {
+      db.ref(`records/${dateKey}/reason`).once('value', s => {
+        document.getElementById('argueReason').value = s.val() || '';
+      });
+    }
+
+    function deleteRecord() {
+      if (!selectedDate) return;
+      if (!confirm('確定要刪除此日期紀錄？')) return;
+      db.ref(`records/${selectedDate}`).remove();
+      renderCalendar();
+      closeChat();
+    }
+
+    // ==== 匯出 ====
+    function exportCSV() { exportData('csv'); }
+    function exportExcel() { exportData('xlsx'); }
+    function exportPDF() { exportData('pdf'); }
+
+    async function exportData(format) {
+      const start = document.getElementById('exportStart').value;
+      const end = document.getElementById('exportEnd').value;
+      if (!start || !end) return alert('請選擇日期範圍');
+      const startDate = new Date(start), endDate = new Date(end);
+      if (startDate > endDate) return alert('開始日期不能晚於結束日期');
+
+      const snapshot = await db.ref('records').once('value');
+      let data = [];
+      snapshot.forEach(c => {
+        const d = new Date(c.key);
+        if (d >= startDate && d <= endDate) data.push({ date: c.key, ...c.val() });
+      });
+      if (!data.length) return alert('無資料');
+
+      if (format === 'csv') {
+        let csv = '日期,原因,訊息\n';
+        data.forEach(r => {
+          const msgs = r.messages ? Object.values(r.messages).map(m=>m.nickname+':'+m.message).join('|') : '';
+          csv += `"${r.date}","${r.reason||''}","${msgs}"\n`;
+        });
+        downloadBlob(new Blob([csv], { type: 'text/csv;charset=utf-8;' }), `telepathy_${start}_to_${end}.csv`);
+      }
+      else if (format === 'xlsx') {
+        const ws_data = [['日期','原因','訊息']];
+        data.forEach(r => {
+          const msgs = r.messages ? Object.values(r.messages).map(m=>m.nickname+':'+m.message).join('|') : '';
+          ws_data.push([r.date,r.reason||'',msgs]);
+        });
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(ws_data), '紀錄');
+        XLSX.writeFile(wb, `telepathy_${start}_to_${end}.xlsx`);
+      }
+      else if (format === 'pdf') {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        let y = 10;
+        data.forEach(r => {
+          const msgs = r.messages ? Object.values(r.messages).map(m=>m.nickname+':'+m.message).join('\n') : '';
+          const text = `日期: ${r.date}\n原因: ${r.reason||''}\n訊息:\n${msgs}\n----------------\n`;
+          doc.text(text, 10, y);
+          y += 20 + (msgs.split('\n').length*4);
+          if (y > 280) { doc.addPage(); y = 10; }
+        });
+        doc.save(`telepathy_${start}_to_${end}.pdf`);
+      }
+    }
+
+    function downloadBlob(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    renderCalendar();
+  </script>
+</body>
+</html>
