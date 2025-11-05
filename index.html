@@ -3,141 +3,45 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>心電感應⚡️ v3.4</title>
+  <title>心電感應⚡️ v3.5</title>
   <style>
-    body {
-      font-family: 'Arial', sans-serif;
-      background-color: #c0c4d1;
-      color: #333;
-      margin: 0;
-      transition: background-color 0.3s, color 0.3s;
-    }
-    header {
-      background-color: #d1c0c4;
-      padding: 10px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-wrap: wrap;
-    }
-    header h1 { margin: 0; font-size: 1.5em; }
-    button { cursor: pointer; transition: 0.2s; }
-    button:hover { opacity: 0.8; }
+    body { font-family: 'Arial', sans-serif; background-color: #c0c4d1; color: #333; margin:0; transition: background-color 0.3s, color 0.3s; }
+    header { background-color: #d1c0c4; padding:10px; display:flex; justify-content:space-between; flex-wrap:wrap; align-items:center; }
+    header h1 { margin:0; font-size:1.5em; }
+    button { cursor:pointer; transition:0.2s; }
+    button:hover { opacity:0.8; }
 
-    .calendar-header { text-align: center; margin: 15px 0; }
-    .calendar {
-      display: grid;
-      grid-template-columns: repeat(7, 1fr);
-      gap: 5px;
-      padding: 10px;
-    }
-    .day {
-      background-color: #f5f5f5;
-      border: 1px solid #ccc;
-      padding: 10px;
-      height: 70px;
-      cursor: pointer;
-      position: relative;
-      text-align: center;
-      transition: 0.2s;
-    }
-    .day:hover { background-color: #e5e5e5; }
-    .day.has-argue::after {
-      content: "✖";
-      color: #e74c3c;
-      font-weight: bold;
-      position: absolute;
-      right: 5px;
-      top: 5px;
-    }
+    .calendar-header { text-align:center; margin:15px 0; }
+    .calendar { display:grid; grid-template-columns:repeat(7,1fr); gap:5px; padding:10px; }
+    .day { background-color:#f5f5f5; border:1px solid #ccc; padding:10px; height:70px; cursor:pointer; position:relative; text-align:center; transition:0.2s; }
+    .day:hover { background-color:#e5e5e5; }
+    .day.has-argue::after { content:"✖"; color:#e74c3c; font-weight:bold; position:absolute; right:5px; top:5px; }
 
-    .chat-container {
-      display: none;
-      position: fixed;
-      bottom: 0;
-      right: 0;
-      width: 340px;
-      max-height: 500px;
-      background: #fff;
-      border: 1px solid #ccc;
-      display: flex;
-      flex-direction: column;
-      z-index: 999;
-      box-shadow: 0 0 10px rgba(0,0,0,0.3);
-    }
+    .chat-container { display:none; position:fixed; bottom:0; right:0; width:340px; max-height:500px; background:#fff; border:1px solid #ccc; flex-direction:column; z-index:999; box-shadow:0 0 10px rgba(0,0,0,0.3); }
+    .chat-header { background-color:#d1c0c4; padding:5px; font-weight:bold; display:flex; justify-content:space-between; align-items:center; }
+    .chat-header button { background:none; border:none; font-size:16px; cursor:pointer; }
+    .chat-messages { flex:1; overflow-y:auto; background:#eee; padding:5px; }
+    .chat-input { display:flex; padding:5px; background:#fafafa; }
+    .chat-input input { flex:1; border:1px solid #ccc; padding:5px; }
+    .chat-input button { background-color:#d1c0c4; border:none; padding:5px 10px; }
 
-    .chat-header {
-      background-color: #d1c0c4;
-      padding: 5px;
-      font-weight: bold;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    .chat-header button {
-      background: none;
-      border: none;
-      font-size: 16px;
-      cursor: pointer;
-    }
+    .reason-section { background:#f4f4f4; padding:5px; border-top:1px solid #ccc; }
 
-    .chat-messages {
-      flex: 1;
-      overflow-y: auto;
-      background: #eee;
-      padding: 5px;
-    }
-    .chat-input {
-      display: flex;
-      padding: 5px;
-      background: #fafafa;
-    }
-    .chat-input input {
-      flex: 1;
-      border: 1px solid #ccc;
-      padding: 5px;
-    }
-    .chat-input button {
-      background-color: #d1c0c4;
-      border: none;
-      padding: 5px 10px;
-    }
+    .settings, .stats, .search, .export { position:fixed; top:60px; right:10px; background:#fff; border:1px solid #ccc; padding:10px; display:none; flex-direction:column; z-index:1000; width:300px; box-shadow:0 0 10px rgba(0,0,0,0.2); max-height:400px; overflow:auto; }
+    .settings button, .stats button, .search button, .export button { margin-top:5px; background-color:#d1c0c4; border:none; padding:5px; cursor:pointer; }
 
-    .reason-section {
-      background: #f4f4f4;
-      padding: 5px;
-      border-top: 1px solid #ccc;
-    }
+    .night-mode { background-color:#222 !important; color:#fff !important; }
+    .year-control { text-align:center; margin-bottom:5px; }
 
-    .settings, .stats, .search, .export {
-      position: fixed;
-      top: 60px;
-      right: 10px;
-      background: #fff;
-      border: 1px solid #ccc;
-      padding: 10px;
-      display: none;
-      flex-direction: column;
-      z-index: 1000;
-      width: 260px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.2);
-    }
-
-    .settings button, .stats button, .search button, .export button {
-      margin-top: 5px;
-      background-color: #d1c0c4;
-      border: none;
-      padding: 5px;
-      cursor: pointer;
-    }
-
-    .night-mode { background-color: #222 !important; color: #fff !important; }
-    .year-control { text-align: center; margin-bottom: 5px; }
+    table { width:100%; border-collapse: collapse; margin-top:5px; }
+    th, td { border:1px solid #ccc; padding:5px; text-align:center; }
+    th { background:#d1c0c4; }
+    tr:hover { background:#f0f0f0; }
   </style>
 </head>
 <body>
   <header>
-    <h1>心電感應⚡️ v3.4</h1>
+    <h1>心電感應⚡️ v3.5</h1>
     <div>
       <button onclick="toggleSearch()">🔍搜尋</button>
       <button onclick="toggleStats()">📊統計</button>
@@ -211,6 +115,7 @@
     <h3>📦 匯出資料</h3>
     <label>開始日期：<input type="date" id="exportStart"></label>
     <label>結束日期：<input type="date" id="exportEnd"></label>
+    <button onclick="exportJSON()">匯出 JSON</button>
     <button onclick="exportCSV()">匯出 CSV</button>
     <button onclick="exportExcel()">匯出 Excel</button>
     <button onclick="exportPDF()">匯出 PDF</button>
@@ -220,9 +125,8 @@
   <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-  <!-- SheetJS -->
+  <!-- 下載 CSV / Excel / PDF -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <!-- jsPDF -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
   <script>
@@ -245,171 +149,107 @@
     let nickname = localStorage.getItem('nickname') || '匿名';
     document.getElementById('nicknameInput').value = nickname;
 
-    // ==== UI 開關 ====
+    // UI 開關
     function toggleSettings() { togglePanel('settingsPanel'); }
-    function toggleStats() { togglePanel('statsPanel'); if (document.getElementById('statsPanel').style.display === 'flex') loadYearStats(); }
+    function toggleStats() { togglePanel('statsPanel'); if(document.getElementById('statsPanel').style.display==='flex') loadYearStats(); }
     function toggleSearch() { togglePanel('searchPanel'); }
     function toggleExport() { togglePanel('exportPanel'); }
-    function togglePanel(id) {
-      document.querySelectorAll('.settings, .stats, .search, .export').forEach(p => p.style.display = 'none');
-      const panel = document.getElementById(id);
-      panel.style.display = (panel.style.display === 'flex') ? 'none' : 'flex';
-    }
-    function closeStats() { document.getElementById('statsPanel').style.display = 'none'; }
-    function closeSearch() { document.getElementById('searchPanel').style.display = 'none'; }
-    function closeSettings() { document.getElementById('settingsPanel').style.display = 'none'; }
-    function closeExport() { document.getElementById('exportPanel').style.display = 'none'; }
-    function toggleTheme() { document.body.classList.toggle('night-mode'); }
+    function togglePanel(id){ document.querySelectorAll('.settings, .stats, .search, .export').forEach(p=>p.style.display='none'); const panel=document.getElementById(id); panel.style.display=(panel.style.display==='flex')?'none':'flex'; }
+    function closeStats(){ document.getElementById('statsPanel').style.display='none'; }
+    function closeSearch(){ document.getElementById('searchPanel').style.display='none'; }
+    function closeSettings(){ document.getElementById('settingsPanel').style.display='none'; }
+    function closeExport(){ document.getElementById('exportPanel').style.display='none'; }
+    function toggleTheme(){ document.body.classList.toggle('night-mode'); }
 
-    // ==== 暱稱 ====
-    function saveNickname() {
-      nickname = document.getElementById('nicknameInput').value || '匿名';
-      localStorage.setItem('nickname', nickname);
-      alert('暱稱已儲存: ' + nickname);
-    }
+    // 暱稱
+    function saveNickname(){ nickname=document.getElementById('nicknameInput').value||'匿名'; localStorage.setItem('nickname',nickname); alert('暱稱已儲存: '+nickname); }
 
-    // ==== 日曆 ====
+    // 日曆
     function renderCalendar() {
-      const cal = document.getElementById('calendar');
-      cal.innerHTML = '';
-      document.getElementById('currentMonthYear').textContent = `${currentYear} 年 ${currentMonth + 1} 月`;
-      document.getElementById('currentYearLabel').textContent = `📆 ${currentYear}`;
-
-      const firstDay = new Date(currentYear, currentMonth, 1).getDay();
-      const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-      for (let i = 0; i < firstDay; i++) cal.appendChild(document.createElement('div'));
-
-      for (let day = 1; day <= daysInMonth; day++) {
-        const dateKey = `${currentYear}-${currentMonth + 1}-${day}`;
-        const dayDiv = document.createElement('div');
-        dayDiv.className = 'day';
-        dayDiv.innerHTML = `<span>${day}</span>`;
-        dayDiv.onclick = () => openChat(dateKey);
-        db.ref(`records/${dateKey}/reason`).once('value', s => {
-          if (s.exists()) dayDiv.classList.add('has-argue');
-        });
-        cal.appendChild(dayDiv);
+      const cal=document.getElementById('calendar'); cal.innerHTML='';
+      document.getElementById('currentMonthYear').textContent=`${currentYear} 年 ${currentMonth+1} 月`;
+      document.getElementById('currentYearLabel').textContent=`📆 ${currentYear}`;
+      const firstDay=new Date(currentYear,currentMonth,1).getDay();
+      const daysInMonth=new Date(currentYear,currentMonth+1,0).getDate();
+      for(let i=0;i<firstDay;i++) cal.innerHTML+='<div></div>';
+      for(let d=1;d<=daysInMonth;d++){
+        const dateStr=`${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        const div=document.createElement('div'); div.className='day'; div.textContent=d;
+        db.ref('records/'+dateStr).get().then(snap=>{ if(snap.exists()){ div.classList.add('has-argue'); } });
+        div.onclick=()=>openChat(dateStr); cal.appendChild(div);
       }
     }
 
-    function prevMonth() { currentMonth = (currentMonth === 0 ? 11 : currentMonth - 1); if (currentMonth === 11) currentYear--; renderCalendar(); }
-    function nextMonth() { currentMonth = (currentMonth === 11 ? 0 : currentMonth + 1); if (currentMonth === 0) currentYear++; renderCalendar(); }
-    function prevYear() { currentYear--; renderCalendar(); }
-    function nextYear() { currentYear++; renderCalendar(); }
+    function prevMonth(){ currentMonth--; if(currentMonth<0){currentMonth=11; currentYear--; } renderCalendar(); }
+    function nextMonth(){ currentMonth++; if(currentMonth>11){currentMonth=0; currentYear++; } renderCalendar(); }
+    function prevYear(){ currentYear--; renderCalendar(); }
+    function nextYear(){ currentYear++; renderCalendar(); }
 
-    // ==== 聊天 ====
-    function openChat(dateKey) {
-      selectedDate = dateKey;
-      document.getElementById('chatContainer').style.display = 'flex';
-      document.getElementById('chatDate').textContent = dateKey;
-      loadMessages(dateKey);
-      loadReason(dateKey);
-    }
-    function closeChat() { document.getElementById('chatContainer').style.display = 'none'; }
-
-    function sendMessage() {
-      const input = document.getElementById('chatInput');
-      const msg = input.value.trim();
-      if (!msg || !selectedDate) return;
-      db.ref(`records/${selectedDate}/messages`).push({ nickname, message: msg, timestamp: Date.now() });
-      input.value = '';
-    }
-
-    function loadMessages(dateKey) {
-      const msgDiv = document.getElementById('chatMessages');
-      db.ref(`records/${dateKey}/messages`).on('value', s => {
-        msgDiv.innerHTML = '';
-        s.forEach(c => {
-          const m = c.val();
-          const el = document.createElement('div');
-          el.textContent = `${m.nickname}: ${m.message}`;
-          msgDiv.appendChild(el);
+    // 聊天室
+    function openChat(date){ selectedDate=date; document.getElementById('chatDate').textContent=date; document.getElementById('chatContainer').style.display='flex'; loadChat(date); }
+    function closeChat(){ document.getElementById('chatContainer').style.display='none'; }
+    function loadChat(date){
+      db.ref('records/'+date).get().then(snap=>{
+        const data=snap.val()||{}; 
+        document.getElementById('argueReason').value=data.reason||'';
+        const chatDiv=document.getElementById('chatMessages'); chatDiv.innerHTML='';
+        if(data.messages) Object.entries(data.messages).forEach(([k,v])=>{
+          const p=document.createElement('div'); p.textContent=`[${v.user}] ${v.text}`; chatDiv.appendChild(p);
         });
-        msgDiv.scrollTop = msgDiv.scrollHeight;
       });
     }
-
-    function saveArgueReason() {
-      const reason = document.getElementById('argueReason').value.trim();
-      if (!reason || !selectedDate) return;
-      db.ref(`records/${selectedDate}/reason`).set(reason);
-      renderCalendar();
+    function saveArgueReason(){ if(!selectedDate) return; const reason=document.getElementById('argueReason').value; db.ref('records/'+selectedDate+'/reason').set(reason).then(()=>renderCalendar()); }
+    function sendMessage(){
+      if(!selectedDate) return; const input=document.getElementById('chatInput'); if(!input.value) return;
+      const msg={user:nickname,text:input.value};
+      db.ref('records/'+selectedDate+'/messages').push(msg).then(()=>{ input.value=''; loadChat(selectedDate); renderCalendar(); });
     }
-    function loadReason(dateKey) {
-      db.ref(`records/${dateKey}/reason`).once('value', s => {
-        document.getElementById('argueReason').value = s.val() || '';
-      });
-    }
+    function deleteRecord(){ if(!selectedDate) return; if(confirm('確定刪除此日期所有紀錄？')) db.ref('records/'+selectedDate).remove().then(()=>{ closeChat(); renderCalendar(); }); }
 
-    function deleteRecord() {
-      if (!selectedDate) return;
-      if (!confirm('確定要刪除此日期紀錄？')) return;
-      db.ref(`records/${selectedDate}`).remove();
-      renderCalendar();
-      closeChat();
-    }
-
-    // ==== 匯出 ====
-    function exportCSV() { exportData('csv'); }
-    function exportExcel() { exportData('xlsx'); }
-    function exportPDF() { exportData('pdf'); }
-
-    async function exportData(format) {
-      const start = document.getElementById('exportStart').value;
-      const end = document.getElementById('exportEnd').value;
-      if (!start || !end) return alert('請選擇日期範圍');
-      const startDate = new Date(start), endDate = new Date(end);
-      if (startDate > endDate) return alert('開始日期不能晚於結束日期');
-
-      const snapshot = await db.ref('records').once('value');
-      let data = [];
-      snapshot.forEach(c => {
-        const d = new Date(c.key);
-        if (d >= startDate && d <= endDate) data.push({ date: c.key, ...c.val() });
-      });
-      if (!data.length) return alert('無資料');
-
-      if (format === 'csv') {
-        let csv = '日期,原因,訊息\n';
-        data.forEach(r => {
-          const msgs = r.messages ? Object.values(r.messages).map(m=>m.nickname+':'+m.message).join('|') : '';
-          csv += `"${r.date}","${r.reason||''}","${msgs}"\n`;
-        });
-        downloadBlob(new Blob([csv], { type: 'text/csv;charset=utf-8;' }), `telepathy_${start}_to_${end}.csv`);
+    // 統計表格
+    async function loadYearStats(){
+      const statsDiv=document.getElementById('yearStats'); statsDiv.innerHTML='載入中...';
+      const snapshot=await db.ref('records').once('value'); const records=snapshot.val()||{};
+      let tableHTML=`<table><tr><th>月份</th><th>吵架次數</th><th>訊息數量</th></tr>`;
+      for(let m=0;m<12;m++){
+        const monthRecords=Object.entries(records).filter(([date])=>{ const d=new Date(date); return d.getFullYear()===currentYear && d.getMonth()===m; });
+        const argueCount=monthRecords.filter(([date,r])=>r.reason).length;
+        let msgCount=0; monthRecords.forEach(([date,r])=>{ if(r.messages) msgCount+=Object.keys(r.messages).length; });
+        tableHTML+=`<tr><td>${m+1} 月</td><td>${argueCount}</td><td>${msgCount}</td></tr>`;
       }
-      else if (format === 'xlsx') {
-        const ws_data = [['日期','原因','訊息']];
-        data.forEach(r => {
-          const msgs = r.messages ? Object.values(r.messages).map(m=>m.nickname+':'+m.message).join('|') : '';
-          ws_data.push([r.date,r.reason||'',msgs]);
-        });
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(ws_data), '紀錄');
-        XLSX.writeFile(wb, `telepathy_${start}_to_${end}.xlsx`);
-      }
-      else if (format === 'pdf') {
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
-        let y = 10;
-        data.forEach(r => {
-          const msgs = r.messages ? Object.values(r.messages).map(m=>m.nickname+':'+m.message).join('\n') : '';
-          const text = `日期: ${r.date}\n原因: ${r.reason||''}\n訊息:\n${msgs}\n----------------\n`;
-          doc.text(text, 10, y);
-          y += 20 + (msgs.split('\n').length*4);
-          if (y > 280) { doc.addPage(); y = 10; }
-        });
-        doc.save(`telepathy_${start}_to_${end}.pdf`);
-      }
+      tableHTML+='</table>'; statsDiv.innerHTML=tableHTML;
     }
 
-    function downloadBlob(blob, filename) {
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      a.click();
-      URL.revokeObjectURL(url);
+    // 關鍵字搜尋
+    async function searchReasons(){
+      const kw=document.getElementById('searchKeyword').value.trim(); if(!kw) return;
+      const snapshot=await db.ref('records').once('value'); const records=snapshot.val()||{};
+      let html=`<table><tr><th>日期</th><th>原因</th></tr>`;
+      Object.entries(records).forEach(([date,r])=>{ if(r.reason && r.reason.includes(kw)){ html+=`<tr><td>${date}</td><td>${r.reason}</td></tr>`; } });
+      html+='</table>'; document.getElementById('searchResults').innerHTML=html;
     }
+
+    // 匯出
+    async function exportJSON(){
+      const data=await db.ref('records').once('value'); download('records.json', JSON.stringify(data.val(), null,2)); }
+    async function exportCSV(){
+      const data=await db.ref('records').once('value'); const records=data.val()||{};
+      let csv='日期,原因,訊息\n'; Object.entries(records).forEach(([date,r])=>{
+        const msgs=r.messages?Object.values(r.messages).map(m=>m.text).join('|'):'';
+        csv+=`"${date}","${r.reason||''}","${msgs}"\n`;
+      }); download('records.csv', csv); }
+    async function exportExcel(){
+      const data=await db.ref('records').once('value'); const records=data.val()||{};
+      const ws=XLSX.utils.json_to_sheet(Object.entries(records).map(([date,r])=>({日期:date,原因:r.reason||'',訊息:r.messages?Object.values(r.messages).map(m=>m.text).join('|'):''})));
+      const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Records'); XLSX.writeFile(wb, 'records.xlsx'); }
+    async function exportPDF(){
+      const data=await db.ref('records').once('value'); const records=data.val()||{};
+      const { jsPDF } = window.jspdf; const doc=new jsPDF(); let y=10;
+      Object.entries(records).forEach(([date,r])=>{
+        const msgs=r.messages?Object.values(r.messages).map(m=>`[${m.user}] ${m.text}`).join(', '):'';
+        doc.text(`${date} 原因:${r.reason||''} 訊息:${msgs}`, 10, y); y+=10;
+      }); doc.save('records.pdf'); }
+    function download(filename, text){ const a=document.createElement('a'); a.href='data:text/plain;charset=utf-8,'+encodeURIComponent(text); a.download=filename; a.click(); }
 
     renderCalendar();
   </script>
