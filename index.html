@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>心電感應⚡️</title>
+  <title>心電感應⚡️ v3.4</title>
   <style>
     body {
       font-family: 'Arial', sans-serif;
@@ -20,14 +20,11 @@
       align-items: center;
       flex-wrap: wrap;
     }
-    header h1 {
-      margin: 0;
-      font-size: 1.5em;
-    }
-    .calendar-header {
-      text-align: center;
-      margin: 15px 0;
-    }
+    header h1 { margin: 0; font-size: 1.5em; }
+    button { cursor: pointer; transition: 0.2s; }
+    button:hover { opacity: 0.8; }
+
+    .calendar-header { text-align: center; margin: 15px 0; }
     .calendar {
       display: grid;
       grid-template-columns: repeat(7, 1fr);
@@ -42,7 +39,9 @@
       cursor: pointer;
       position: relative;
       text-align: center;
+      transition: 0.2s;
     }
+    .day:hover { background-color: #e5e5e5; }
     .day.has-argue::after {
       content: "✖";
       color: #e74c3c;
@@ -51,6 +50,7 @@
       right: 5px;
       top: 5px;
     }
+
     .chat-container {
       display: none;
       position: fixed;
@@ -63,7 +63,9 @@
       display: flex;
       flex-direction: column;
       z-index: 999;
+      box-shadow: 0 0 10px rgba(0,0,0,0.3);
     }
+
     .chat-header {
       background-color: #d1c0c4;
       padding: 5px;
@@ -75,9 +77,10 @@
     .chat-header button {
       background: none;
       border: none;
-      cursor: pointer;
       font-size: 16px;
+      cursor: pointer;
     }
+
     .chat-messages {
       flex: 1;
       overflow-y: auto;
@@ -98,14 +101,15 @@
       background-color: #d1c0c4;
       border: none;
       padding: 5px 10px;
-      cursor: pointer;
     }
+
     .reason-section {
       background: #f4f4f4;
       padding: 5px;
       border-top: 1px solid #ccc;
     }
-    .settings, .stats, .search {
+
+    .settings, .stats, .search, .export {
       position: fixed;
       top: 60px;
       right: 10px;
@@ -116,30 +120,28 @@
       flex-direction: column;
       z-index: 1000;
       width: 260px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.2);
     }
-    .settings button, .stats button, .search button {
+
+    .settings button, .stats button, .search button, .export button {
       margin-top: 5px;
       background-color: #d1c0c4;
       border: none;
       padding: 5px;
       cursor: pointer;
     }
-    .night-mode {
-      background-color: #222 !important;
-      color: #fff !important;
-    }
-    .year-control {
-      text-align: center;
-      margin-bottom: 5px;
-    }
+
+    .night-mode { background-color: #222 !important; color: #fff !important; }
+    .year-control { text-align: center; margin-bottom: 5px; }
   </style>
 </head>
 <body>
   <header>
-    <h1>心電感應⚡️</h1>
+    <h1>心電感應⚡️ v3.4</h1>
     <div>
       <button onclick="toggleSearch()">🔍搜尋</button>
       <button onclick="toggleStats()">📊統計</button>
+      <button onclick="toggleExport()">📦匯出</button>
       <button onclick="toggleSettings()">⚙️設定</button>
       <button onclick="toggleTheme()">🌙切換</button>
     </div>
@@ -185,6 +187,7 @@
       <input type="text" id="nicknameInput">
       <button onclick="saveNickname()">儲存</button>
     </label>
+    <button onclick="closeSettings()">關閉</button>
   </div>
 
   <!-- 統計 -->
@@ -201,6 +204,15 @@
     <button onclick="searchReasons()">搜尋</button>
     <div id="searchResults"></div>
     <button onclick="closeSearch()">關閉</button>
+  </div>
+
+  <!-- 匯出資料 -->
+  <div class="export" id="exportPanel">
+    <h3>📦 匯出資料</h3>
+    <label>開始日期：<input type="date" id="exportStart"></label>
+    <label>結束日期：<input type="date" id="exportEnd"></label>
+    <button onclick="exportData()">匯出 JSON</button>
+    <button onclick="closeExport()">關閉</button>
   </div>
 
   <!-- Firebase -->
@@ -225,24 +237,32 @@
     let currentYear = new Date().getFullYear();
     let selectedDate = null;
     let nickname = localStorage.getItem('nickname') || '匿名';
-
     document.getElementById('nicknameInput').value = nickname;
 
+    // ==== UI 開關 ====
     function toggleSettings() { togglePanel('settingsPanel'); }
     function toggleStats() { togglePanel('statsPanel'); if (document.getElementById('statsPanel').style.display === 'flex') loadYearStats(); }
     function toggleSearch() { togglePanel('searchPanel'); }
+    function toggleExport() { togglePanel('exportPanel'); }
     function togglePanel(id) {
-      document.querySelectorAll('.settings, .stats, .search').forEach(p => p.style.display = 'none');
+      document.querySelectorAll('.settings, .stats, .search, .export').forEach(p => p.style.display = 'none');
       const panel = document.getElementById(id);
       panel.style.display = (panel.style.display === 'flex') ? 'none' : 'flex';
     }
+    function closeStats() { document.getElementById('statsPanel').style.display = 'none'; }
+    function closeSearch() { document.getElementById('searchPanel').style.display = 'none'; }
+    function closeSettings() { document.getElementById('settingsPanel').style.display = 'none'; }
+    function closeExport() { document.getElementById('exportPanel').style.display = 'none'; }
     function toggleTheme() { document.body.classList.toggle('night-mode'); }
+
+    // ==== 暱稱 ====
     function saveNickname() {
       nickname = document.getElementById('nicknameInput').value || '匿名';
       localStorage.setItem('nickname', nickname);
       alert('暱稱已儲存: ' + nickname);
     }
 
+    // ==== 日曆 ====
     function renderCalendar() {
       const cal = document.getElementById('calendar');
       cal.innerHTML = '';
@@ -271,6 +291,7 @@
     function prevYear() { currentYear--; renderCalendar(); }
     function nextYear() { currentYear++; renderCalendar(); }
 
+    // ==== 聊天 ====
     function openChat(dateKey) {
       selectedDate = dateKey;
       document.getElementById('chatContainer').style.display = 'flex';
@@ -305,8 +326,7 @@
     function saveArgueReason() {
       const reason = document.getElementById('argueReason').value.trim();
       if (!reason || !selectedDate) return;
-      db.ref(`records/${selectedDate}/reason`).set(reason);
-      renderCalendar();
+      db.ref(`records/${selectedDate}/reason`).set(reason).then(() => renderCalendar());
     }
 
     function loadReason(dateKey) {
@@ -315,20 +335,24 @@
       });
     }
 
+    // ==== 刪除 ====
     function deleteRecord() {
       if (!selectedDate) return;
       db.ref(`records/${selectedDate}/reason`).once('value', s => {
         const reason = s.val() || '（無原因紀錄）';
         const confirmMsg = `⚠️ 確定要刪除 ${selectedDate} 的所有紀錄嗎？\n原因：${reason}`;
         if (confirm(confirmMsg)) {
-          db.ref(`records/${selectedDate}`).remove();
-          closeChat();
-          renderCalendar();
-          alert("該日期紀錄已刪除！");
+          db.ref(`records/${selectedDate}`).remove().then(() => {
+            closeChat();
+            renderCalendar();
+            loadYearStats();
+            alert("該日期紀錄已刪除！");
+          });
         }
       });
     }
 
+    // ==== 統計 ====
     function loadYearStats() {
       const div = document.getElementById('yearStats');
       div.innerHTML = '載入中...';
@@ -347,6 +371,7 @@
       });
     }
 
+    // ==== 搜尋 ====
     function searchReasons() {
       const kw = document.getElementById('searchKeyword').value.trim();
       const resDiv = document.getElementById('searchResults');
@@ -359,6 +384,35 @@
           if (r.includes(kw)) matches.push({ date: c.key, reason: r });
         });
         resDiv.innerHTML = matches.length ? matches.map(m => `<div onclick="openChat('${m.date}')">${m.date}：${m.reason}</div>`).join('') : '沒有找到結果';
+      });
+    }
+
+    // ==== 匯出 ====
+    function exportData() {
+      const start = document.getElementById('exportStart').value;
+      const end = document.getElementById('exportEnd').value;
+      if (!start || !end) return alert('請選擇起始與結束日期');
+
+      const startDate = new Date(start);
+      const endDate = new Date(end);
+      if (startDate > endDate) return alert('開始日期不能晚於結束日期');
+
+      db.ref('records').once('value', s => {
+        let exportData = {};
+        s.forEach(c => {
+          const recordDate = new Date(c.key);
+          if (recordDate >= startDate && recordDate <= endDate) {
+            exportData[c.key] = c.val();
+          }
+        });
+
+        const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `telepathy_records_${start}_to_${end}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
       });
     }
 
