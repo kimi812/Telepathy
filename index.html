@@ -70,6 +70,13 @@
       font-weight: bold;
       display: flex;
       justify-content: space-between;
+      align-items: center;
+    }
+    .chat-header button {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 16px;
     }
     .chat-messages {
       flex: 1;
@@ -156,7 +163,10 @@
   <div class="chat-container" id="chatContainer">
     <div class="chat-header">
       <span id="chatDate"></span>
-      <button onclick="closeChat()">✖</button>
+      <div>
+        <button onclick="deleteRecord()" title="刪除這天紀錄">🗑️</button>
+        <button onclick="closeChat()">✖</button>
+      </div>
     </div>
     <div class="reason-section">
       <input type="text" id="argueReason" placeholder="輸入吵架原因">
@@ -218,58 +228,46 @@
 
     document.getElementById('nicknameInput').value = nickname;
 
-    function toggleSettings() {
-      togglePanel('settingsPanel');
-    }
-    function toggleStats() {
-      togglePanel('statsPanel');
-      if (document.getElementById('statsPanel').style.display === 'flex') loadYearStats();
-    }
-    function toggleSearch() {
-      togglePanel('searchPanel');
-    }
+    function toggleSettings() { togglePanel('settingsPanel'); }
+    function toggleStats() { togglePanel('statsPanel'); if (document.getElementById('statsPanel').style.display === 'flex') loadYearStats(); }
+    function toggleSearch() { togglePanel('searchPanel'); }
     function togglePanel(id) {
       document.querySelectorAll('.settings, .stats, .search').forEach(p => p.style.display = 'none');
       const panel = document.getElementById(id);
       panel.style.display = (panel.style.display === 'flex') ? 'none' : 'flex';
     }
-    function toggleTheme() {
-      document.body.classList.toggle('night-mode');
-    }
+    function toggleTheme() { document.body.classList.toggle('night-mode'); }
     function saveNickname() {
       nickname = document.getElementById('nicknameInput').value || '匿名';
       localStorage.setItem('nickname', nickname);
       alert('暱稱已儲存: ' + nickname);
     }
 
-    function renderCalendar(month = currentMonth, year = currentYear) {
-      const calendar = document.getElementById('calendar');
-      calendar.innerHTML = '';
-      document.getElementById('currentMonthYear').textContent = `${year} 年 ${month + 1} 月`;
-      document.getElementById('currentYearLabel').textContent = `📆 ${year}`;
+    function renderCalendar() {
+      const cal = document.getElementById('calendar');
+      cal.innerHTML = '';
+      document.getElementById('currentMonthYear').textContent = `${currentYear} 年 ${currentMonth + 1} 月`;
+      document.getElementById('currentYearLabel').textContent = `📆 ${currentYear}`;
 
-      const firstDay = new Date(year, month, 1).getDay();
-      const daysInMonth = new Date(year, month + 1, 0).getDate();
-
-      for (let i = 0; i < firstDay; i++) {
-        calendar.appendChild(document.createElement('div'));
-      }
+      const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+      const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+      for (let i = 0; i < firstDay; i++) cal.appendChild(document.createElement('div'));
 
       for (let day = 1; day <= daysInMonth; day++) {
-        const dateKey = `${year}-${month + 1}-${day}`;
+        const dateKey = `${currentYear}-${currentMonth + 1}-${day}`;
         const dayDiv = document.createElement('div');
         dayDiv.className = 'day';
         dayDiv.innerHTML = `<span>${day}</span>`;
         dayDiv.onclick = () => openChat(dateKey);
-        db.ref(`records/${dateKey}/reason`).once('value', snap => {
-          if (snap.exists()) dayDiv.classList.add('has-argue');
+        db.ref(`records/${dateKey}/reason`).once('value', s => {
+          if (s.exists()) dayDiv.classList.add('has-argue');
         });
-        calendar.appendChild(dayDiv);
+        cal.appendChild(dayDiv);
       }
     }
 
-    function prevMonth() { currentMonth = (currentMonth === 0) ? 11 : currentMonth - 1; if (currentMonth === 11) currentYear--; renderCalendar(); }
-    function nextMonth() { currentMonth = (currentMonth === 11) ? 0 : currentMonth + 1; if (currentMonth === 0) currentYear++; renderCalendar(); }
+    function prevMonth() { currentMonth = (currentMonth === 0 ? 11 : currentMonth - 1); if (currentMonth === 11) currentYear--; renderCalendar(); }
+    function nextMonth() { currentMonth = (currentMonth === 11 ? 0 : currentMonth + 1); if (currentMonth === 0) currentYear++; renderCalendar(); }
     function prevYear() { currentYear--; renderCalendar(); }
     function nextYear() { currentYear++; renderCalendar(); }
 
@@ -292,9 +290,9 @@
 
     function loadMessages(dateKey) {
       const msgDiv = document.getElementById('chatMessages');
-      db.ref(`records/${dateKey}/messages`).on('value', snapshot => {
+      db.ref(`records/${dateKey}/messages`).on('value', s => {
         msgDiv.innerHTML = '';
-        snapshot.forEach(c => {
+        s.forEach(c => {
           const m = c.val();
           const el = document.createElement('div');
           el.textContent = `${m.nickname}: ${m.message}`;
@@ -314,6 +312,20 @@
     function loadReason(dateKey) {
       db.ref(`records/${dateKey}/reason`).once('value', s => {
         document.getElementById('argueReason').value = s.val() || '';
+      });
+    }
+
+    function deleteRecord() {
+      if (!selectedDate) return;
+      db.ref(`records/${selectedDate}/reason`).once('value', s => {
+        const reason = s.val() || '（無原因紀錄）';
+        const confirmMsg = `⚠️ 確定要刪除 ${selectedDate} 的所有紀錄嗎？\n原因：${reason}`;
+        if (confirm(confirmMsg)) {
+          db.ref(`records/${selectedDate}`).remove();
+          closeChat();
+          renderCalendar();
+          alert("該日期紀錄已刪除！");
+        }
       });
     }
 
